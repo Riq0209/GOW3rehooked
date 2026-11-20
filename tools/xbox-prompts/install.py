@@ -40,6 +40,7 @@ QTE = {
     "TX1F5FC983": "square", "TXE8889579": "triangle",
 }
 MASH_PROMPT = "TX9D590CC8"  # The game keeps a copy in both R_UI and R_PERM.
+MASH_BACKGROUND = "gopb_circlesmashbg"
 ATLAS = {"TXFB91136E": ("l2", "l1"), "TX0FFF3CCB": ("r2", "r1")}
 PROMPTS = INLINE.keys() | QTE.keys() | ATLAS.keys()
 LEVEL_TEXTURES = {
@@ -250,7 +251,19 @@ def patch_texture(entry, texture):
     return start, pixels
 
 
-def patch_archive(path, targets):
+def move_mash_background(file, payload):
+    # This instance draws the stock shadow behind the door prompt. Move it
+    # outside the HUD camera without changing the shared background or B icon.
+    instance = file.read(148)
+    position_x = 0x64
+    if instance[:12] != b"\x01\x00\x02\x00ca5c0bf0" or struct.unpack_from("<f", instance, position_x)[0] != 11.0:
+        print("Door prompt background layout differs; keeping it as-is.")
+        return
+    file.seek(payload + position_x)
+    file.write(struct.pack("<f", 4096.0))
+
+
+def patch_archive(path, targets, *, hide_mash_background=False):
     found = set()
     count = 0
     with path.open("r+b") as file:
@@ -258,7 +271,7 @@ def patch_archive(path, targets):
         offset = 0
         while offset + HEADER.size <= end:
             file.seek(offset)
-            tag, _, size, name = HEADER.unpack(file.read(HEADER.size))
+            tag, flags, size, name = HEADER.unpack(file.read(HEADER.size))
             name = name.split(b"\0", 1)[0].decode("latin1")
             if tag == 0 and name == "EntityCount":
                 size = 0  # Level WADs store a count in this marker's size field.
@@ -278,6 +291,8 @@ def patch_archive(path, targets):
                 file.write(pixels)
                 found.add(texture)
                 count += 1
+            elif hide_mash_background and name == MASH_BACKGROUND and (tag, flags, size) == (1, 0x1f, 148):
+                move_mash_background(file, payload)
             offset = payload + ((size + 15) & ~15)
     return found, count
 
@@ -328,7 +343,8 @@ def build(game, output):
             target = stage / WAD_DIR / name
             shutil.copyfile(source, target)
             is_lyre = name == "OLY150.WAD"
-            found, count = patch_archive(target, LEVEL_TEXTURES if is_lyre else PROMPTS)
+            found, count = patch_archive(target, LEVEL_TEXTURES if is_lyre else PROMPTS,
+                                         hide_mash_background=name == "R_UI.WAD")
             if is_lyre and found and found != LEVEL_TEXTURES.keys():
                 missing = ", ".join(sorted(LEVEL_TEXTURES.keys() - found))
                 raise ValueError(f"{name}: missing known lyre textures ({missing})")
