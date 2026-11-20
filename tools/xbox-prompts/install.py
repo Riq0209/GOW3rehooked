@@ -38,6 +38,7 @@ QTE = {
     "TX7FF61BF7": "cross", "TX9D590CC8": "circle",
     "TX1F5FC983": "square", "TXE8889579": "triangle",
 }
+MASH_PROMPT = "TX9D590CC8"  # The game keeps a copy in both R_UI and R_PERM.
 ATLAS = {"TXFB91136E": ("l2", "l1"), "TX0FFF3CCB": ("r2", "r1")}
 PROMPTS = INLINE.keys() | QTE.keys() | ATLAS.keys()
 LEVEL_TEXTURES = {
@@ -55,9 +56,8 @@ FACES = {
     "square": ("X", (92, 156, 231)),
     "triangle": ("Y", (238, 201, 78)),
 }
-OTHER_LABELS = {
+CONTROL_LABELS = {
     "l1": "LB", "r1": "RB", "l2": "LT", "r2": "RT", "l3": "LS", "r3": "RS",
-    "options": "MENU", "touchpad_right": "VIEW",
 }
 SCALE = 4
 
@@ -107,26 +107,77 @@ def render_round_face(label, color, size):
     return face
 
 
-def render_button(button, size, inline):
+def render_control(button, size, inline):
     w, h = (dim * SCALE for dim in size)
-    center = (w / 2, h / 2)
-    label, color = FACES[button] if button in FACES else (OTHER_LABELS[button], (242, 242, 242))
-    if inline and button in FACES:
-        return render_round_face(label, color, size)
-    canvas = Image.new("RGBA", (w, h))
+    cx, cy = w / 2, h / 2
+    canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0 if inline else 255))
     draw = ImageDraw.Draw(canvas)
-    if inline:
-        x, y = w * 0.04, h * 0.16
-        draw.rounded_rectangle((x, y, w - x, h - y), min(w, h) * 0.13,
-                               fill=(26, 26, 30), outline=(121, 121, 128), width=SCALE)
-        letter(draw, label, center, h * 0.36, w * 0.76, color)
+    body, edge, ink = (35, 37, 41), (90, 93, 101), (198, 201, 207)
+
+    if button in ("l1", "r1", "l2", "r2"):
+        bumper = button.endswith("1")
+        half_width = min(w * 0.44, h * (0.73 if bumper else 0.60))
+        half_height = h * (0.23 if bumper else 0.33)
+        if bumper:
+            # A low, wide cap with a swept outer end.
+            points = [(-1, .48), (-.98, -.04), (-.84, -.55), (-.58, -.80),
+                      (.82, -.80), (1, -.50), (1, .54), (.87, .80), (-.83, .80)]
+        else:
+            # Taller with a narrower lower end where the trigger curves inward.
+            points = [(-1, -.56), (-.78, -.94), (.65, -.94), (.95, -.58),
+                      (.93, -.08), (.60, .68), (.33, .90), (-.57, .90), (-.78, .65)]
+        side = -1 if button.startswith("r") else 1
+        outline = [(cx + side * x * half_width, cy + y * half_height) for x, y in points]
+        # QTE textures add their RGB to the animated prompt. Keep the inside
+        # black so the controller shape does not flash as a solid plate.
+        draw.polygon(outline, fill=body if inline else None, outline=edge,
+                     width=max(SCALE, int(h * .024)))
+        letter(draw, CONTROL_LABELS[button], (cx + side * half_width * .08, cy - half_height * .07),
+               half_height * 1.03, half_width * 1.44, ink, stroke=SCALE // 3)
+    elif button in ("l3", "r3"):
+        radius = min(w, h) * 0.30
+        draw.rounded_rectangle((cx - radius * .63, cy, cx + radius * .63, cy + radius * 1.18),
+                               radius * .25, fill=(25, 26, 29), outline=edge, width=SCALE)
+        draw.ellipse((cx - radius, cy - radius * 1.35, cx + radius, cy + radius * .65),
+                     fill=body, outline=edge, width=SCALE)
+        letter(draw, CONTROL_LABELS[button], (cx, cy - radius * .35), radius * .87, radius * 1.49, ink)
     else:
-        letter(draw, label, center, h * 0.57, w * 0.66, color)
-        background = Image.new("RGBA", (w, h), (0, 0, 0, 255))
-        background.alpha_composite(canvas.filter(ImageFilter.GaussianBlur(2.5 * SCALE)))
+        radius = min(w, h) * 0.44
+        draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius),
+                     fill=body, outline=edge, width=SCALE)
+        if button == "options":
+            for offset in (-.35, 0, .35):
+                y = cy + offset * radius
+                draw.line((cx - radius * .46, y, cx + radius * .46, y), fill=ink, width=SCALE * 2)
+        else:
+            for offset in (-.18, .18):
+                x, y = cx + offset * radius, cy + offset * radius
+                draw.rectangle((x - radius * .42, y - radius * .28,
+                                x + radius * .42, y + radius * .28),
+                               fill=body, outline=ink, width=SCALE * 2)
+
+    return canvas.resize(size, Image.Resampling.BOX)
+
+
+def render_button(button, size, inline):
+    if button not in FACES:
+        return render_control(button, size, inline)
+    label, color = FACES[button]
+    if inline:
+        return render_round_face(label, color, size)
+    w, h = (dim * SCALE for dim in size)
+    canvas = Image.new("RGBA", (w, h))
+    letter(ImageDraw.Draw(canvas), label, (w / 2, h / 2), h * 0.57, w * 0.66, color)
+    if button == "circle":
+        # The stock Circle texture uses a dark gray background. The door mash
+        # animation supplies the pulse, so keep the replacement letter crisp.
+        background = Image.new("RGBA", (w, h), (10, 10, 10, 255))
         background.alpha_composite(canvas)
-        canvas = background
-    return canvas.resize(size, Image.Resampling.LANCZOS)
+        return background.resize(size, Image.Resampling.BOX)
+    background = Image.new("RGBA", (w, h), (0, 0, 0, 255))
+    background.alpha_composite(canvas.filter(ImageFilter.GaussianBlur(2.5 * SCALE)))
+    background.alpha_composite(canvas)
+    return background.resize(size, Image.Resampling.LANCZOS)
 
 
 def render_prompt(texture, size):
@@ -173,19 +224,21 @@ def mip_sizes(width, height, remaining, block_size, allow_footer):
         raise ValueError(f"incomplete DDS mip chain ({remaining} extra bytes)")
 
 
-def encode_levels(pixels, image, fourcc, before=None, region=None):
+def encode_levels(pixels, image, fourcc, before=None, region=None, resampling=None):
     block_size = 8 if fourcc == "DXT1" else 16
+    if resampling is None:
+        resampling = Image.Resampling.LANCZOS
     offset = 0
     for level, (w, h, stride, length) in enumerate(
             mip_sizes(*image.size, len(pixels), block_size, allow_footer=region is not None)):
-        resized = image if level == 0 else image.resize((w, h), Image.Resampling.LANCZOS)
+        resized = image if level == 0 else image.resize((w, h), resampling)
         x0, y0, x1, y1 = 0, 0, w, h
         if region and w > 8 and h > 8:
             left, top, right, bottom = (coord >> level for coord in region)
             x0, y0 = left // 4 * 4, top // 4 * 4
             x1, y1 = min(w, (right + 3) // 4 * 4), min(h, (bottom + 3) // 4 * 4)
         if before is not None:
-            original = before if level == 0 else before.resize((w, h), Image.Resampling.LANCZOS)
+            original = before if level == 0 else before.resize((w, h), resampling)
             changed = ImageChops.difference(resized, original)
         row_length = (x1 - x0 + 3) // 4 * block_size
         for y in range(y0, y1, 4):
@@ -232,7 +285,8 @@ def patch_texture(entry, texture):
         region = tuple(coord // (2048 // w) for coord in LYRE_CORNER)
         encode_levels(pixels, painted, fourcc, before=before, region=region)
     else:
-        encode_levels(pixels, render_prompt(texture, (w, h)).convert(mode), fourcc)
+        resampling = Image.Resampling.BOX if texture == MASH_PROMPT else Image.Resampling.LANCZOS
+        encode_levels(pixels, render_prompt(texture, (w, h)).convert(mode), fourcc, resampling=resampling)
     return start, pixels
 
 
