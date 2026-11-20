@@ -129,6 +129,21 @@ Both modes are described under [Settings](#settings).
 
 You can play with a gamepad or with keyboard and mouse, and remap both from a screen inside the game. The added screens show PlayStation symbols for a DualShock 3, DualShock 4 or DualSense, and Xbox-style buttons for other gamepads.
 
+#### Xbox prompts in the original game
+
+The optional [Xbox prompt installer](tools/xbox-prompts/install.py) builds a mod from your 1.02 game files for tutorials, move lists, quick-time events and the Muses' lyre. Its labels match the default controller bindings. The pause menu's controller diagram still shows a DualShock 4.
+
+From this source checkout, run the following once with Python 3 and Pillow. On Windows, use `python` in place of `python3`.
+
+```sh
+python3 -m pip install 'Pillow>=12.1'
+python3 tools/xbox-prompts/install.py "/path/to/God of War III"
+```
+
+Pass the folder containing `eboot.bin`. If the game is in `God of War III/`, the installer creates `God of War III-mods/` alongside it. Launch Rehooked as usual. The installer can also run on another PC. Copy the resulting mod folder next to the game on Steam Deck and match the game folder's name, including capitalization.
+
+If a mod folder already exists, use `--output "/path/to/new-folder"` to generate the files separately. Merge its `EXEC` directory into your existing mod folder. If both mods replace the same WAD, choose which copy to use. To turn off the Xbox prompts, move the generated WADs out of the mod folder.
+
 ### Menus and saves
 
 Continue appears above New Game once you have a save and directly loads the latest. The game originally has 32 manual save slots. GOW3rehooked raises that to 64. The save and load screens let you duplicate or delete saves. Open Save Folder opens the selected save in your file manager.
