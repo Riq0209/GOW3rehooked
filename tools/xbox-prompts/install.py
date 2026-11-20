@@ -2,6 +2,7 @@
 """Build an Xbox button prompt mod from a local God of War III Remastered dump."""
 
 import argparse
+from functools import partial
 import io
 import os
 from pathlib import Path
@@ -58,15 +59,18 @@ FACES = {
 }
 CONTROL_LABELS = {
     "l1": "LB", "r1": "RB", "l2": "LT", "r2": "RT", "l3": "LS", "r3": "RS",
+    "options": "MENU", "touchpad_right": "VIEW",
 }
+CONTROL_FONT = Path(__file__).resolve().parents[2] / "src/externals/imgui/misc/fonts/Roboto-Medium.ttf"
 SCALE = 4
 
 
-def letter(draw, label, center, height, max_width, color, stroke=0):
-    font = ImageFont.load_default(size=max(1, int(height)))
+def letter(draw, label, center, height, max_width, color, stroke=0, font_file=None):
+    load_font = ImageFont.load_default if font_file is None else partial(ImageFont.truetype, str(font_file))
+    font = load_font(size=max(1, int(height)))
     left, top, right, bottom = font.getbbox(label)
     size = max(1, int(font.size * min(height / (bottom - top), max_width / (right - left))))
-    font = ImageFont.load_default(size=size)
+    font = load_font(size=size)
     left, top, right, bottom = font.getbbox(label)
     draw.text((center[0] - (left + right) / 2, center[1] - (top + bottom) / 2),
               label, font=font, fill=color, stroke_width=stroke)
@@ -107,67 +111,23 @@ def render_round_face(label, color, size):
     return face
 
 
-def render_control(button, size, inline):
-    w, h = (dim * SCALE for dim in size)
-    cx, cy = w / 2, h / 2
-    canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0 if inline else 255))
-    draw = ImageDraw.Draw(canvas)
-    body, edge, ink = (35, 37, 41), (90, 93, 101), (198, 201, 207)
-
-    if button in ("l1", "r1", "l2", "r2"):
-        bumper = button.endswith("1")
-        half_width = min(w * 0.44, h * (0.73 if bumper else 0.60))
-        half_height = h * (0.23 if bumper else 0.33)
-        if bumper:
-            # A low, wide cap with a swept outer end.
-            points = [(-1, .48), (-.98, -.04), (-.84, -.55), (-.58, -.80),
-                      (.82, -.80), (1, -.50), (1, .54), (.87, .80), (-.83, .80)]
-        else:
-            # Taller with a narrower lower end where the trigger curves inward.
-            points = [(-1, -.56), (-.78, -.94), (.65, -.94), (.95, -.58),
-                      (.93, -.08), (.60, .68), (.33, .90), (-.57, .90), (-.78, .65)]
-        side = -1 if button.startswith("r") else 1
-        outline = [(cx + side * x * half_width, cy + y * half_height) for x, y in points]
-        # QTE textures add their RGB to the animated prompt. Keep the inside
-        # black so the controller shape does not flash as a solid plate.
-        draw.polygon(outline, fill=body if inline else None, outline=edge,
-                     width=max(SCALE, int(h * .024)))
-        letter(draw, CONTROL_LABELS[button], (cx + side * half_width * .08, cy - half_height * .07),
-               half_height * 1.03, half_width * 1.44, ink, stroke=SCALE // 3)
-    elif button in ("l3", "r3"):
-        radius = min(w, h) * 0.30
-        draw.rounded_rectangle((cx - radius * .63, cy, cx + radius * .63, cy + radius * 1.18),
-                               radius * .25, fill=(25, 26, 29), outline=edge, width=SCALE)
-        draw.ellipse((cx - radius, cy - radius * 1.35, cx + radius, cy + radius * .65),
-                     fill=body, outline=edge, width=SCALE)
-        letter(draw, CONTROL_LABELS[button], (cx, cy - radius * .35), radius * .87, radius * 1.49, ink)
-    else:
-        radius = min(w, h) * 0.44
-        draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius),
-                     fill=body, outline=edge, width=SCALE)
-        if button == "options":
-            for offset in (-.35, 0, .35):
-                y = cy + offset * radius
-                draw.line((cx - radius * .46, y, cx + radius * .46, y), fill=ink, width=SCALE * 2)
-        else:
-            for offset in (-.18, .18):
-                x, y = cx + offset * radius, cy + offset * radius
-                draw.rectangle((x - radius * .42, y - radius * .28,
-                                x + radius * .42, y + radius * .28),
-                               fill=body, outline=ink, width=SCALE * 2)
-
-    return canvas.resize(size, Image.Resampling.BOX)
-
-
 def render_button(button, size, inline):
-    if button not in FACES:
-        return render_control(button, size, inline)
-    label, color = FACES[button]
-    if inline:
+    face = button in FACES
+    label, color = FACES[button] if face else (CONTROL_LABELS[button], (242, 242, 242))
+    font_file = None if face else CONTROL_FONT
+    if inline and face:
         return render_round_face(label, color, size)
     w, h = (dim * SCALE for dim in size)
+    center = (w / 2, h / 2)
     canvas = Image.new("RGBA", (w, h))
-    letter(ImageDraw.Draw(canvas), label, (w / 2, h / 2), h * 0.57, w * 0.66, color)
+    draw = ImageDraw.Draw(canvas)
+    if inline:
+        x, y = w * 0.04, h * 0.16
+        draw.rounded_rectangle((x, y, w - x, h - y), min(w, h) * 0.13,
+                               fill=(26, 26, 30), outline=(121, 121, 128), width=SCALE)
+        letter(draw, label, center, h * 0.36, w * 0.76, color, font_file=font_file)
+        return canvas.resize(size, Image.Resampling.LANCZOS)
+    letter(draw, label, center, h * 0.57, w * 0.66, color, font_file=font_file)
     if button == "circle":
         # The stock Circle texture uses a dark gray background. The door mash
         # animation supplies the pulse, so keep the replacement letter crisp.
