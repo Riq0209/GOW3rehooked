@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Apply Xbox Prompts
+Comment=Install the GOW3rehooked Xbox button prompts
+Icon=input-gaming
+TryExec=python3
+Exec=python3 -c "from pathlib import Path; import runpy,sys; from urllib.parse import urlparse; from urllib.request import url2pathname; ref=sys.argv.pop(1); path=url2pathname(urlparse(ref).path) if ref.startswith('file:') else ref; runpy.run_path(str(Path(path).with_name('apply.py')),run_name='__main__')" %k
+Terminal=true

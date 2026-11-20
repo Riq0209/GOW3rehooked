@@ -133,6 +133,8 @@ You can play with a gamepad or with keyboard and mouse, and remap both from a sc
 
 The optional [Xbox prompt installer](tools/xbox-prompts/install.py) builds a mod from your 1.02 game files for tutorials, move lists, quick-time events and the Muses' lyre. Its labels match the default controller bindings. The pause menu's controller diagram still shows a DualShock 4.
 
+On Steam Deck, download and extract the [Xbox Prompt Updater ZIP](assets/Xbox-Prompt-Updater-Steam-Deck.zip), then open **Apply Xbox Prompts** in Desktop Mode. Choose the folder containing `eboot.bin`. The updater checks for matching CUSA01715 v1.02 game archives, backs up any mod files it replaces, and keeps your saves. For other game dumps, use the installer below.
+
 From this source checkout, run the following once with Python 3 and Pillow. On Windows, use `python` in place of `python3`.
 
 ```sh
