@@ -1,0 +1,50 @@
+GOW3rehooked Xbox button prompts
+
+Close the game before installing. Extract ALL files from this ZIP into one folder.
+
+WINDOWS
+1. Install Python 3.10 or newer from https://www.python.org/downloads/ if needed.
+   Include the Python launcher. No extra Python packages are needed for this updater.
+2. Double-click Apply Xbox Prompts.cmd.
+3. Choose your game folder, the one containing eboot.bin. Wait for the installed message.
+4. Start gow3.exe as usual.
+
+STEAM DECK
+1. Switch to Desktop Mode and open the extracted folder in Dolphin.
+2. Double-click Apply Xbox Prompts.desktop and choose Execute if asked.
+3. Choose your game folder, the one containing eboot.bin. Wait for the installed message.
+4. Start your usual GOW3rehooked Steam shortcut.
+Python 3 is already on the Deck. No extra packages are needed.
+If Dolphin opens a text editor, open a terminal here and run: python3 apply.py
+
+OTHER LINUX DESKTOPS
+Run: python3 apply.py "/path/to/game"
+Without a folder argument, the updater uses kdialog when available or asks for a path.
+
+DEFAULT XBOX LAYOUT
+A = Jump / Cross             B = Grab / Circle
+X = Light Attack / Square    Y = Heavy Attack / Triangle
+LB = Block / L1              RB = Interact / R1
+LT = Prepare Item / L2       RT = Magic / R2
+View / Back = Pause         Menu / Start = Power Up Menu
+
+Use Help and Controls in the title menu to remap buttons or restore defaults.
+The installed game textures show the DEFAULT bindings even if you remap buttons.
+Tutorials, move lists, quick-time events and the Muses' lyre use Xbox prompts.
+The pause menu's controller diagram still shows a DualShock 4.
+
+COMPATIBILITY AND FILES
+This bundle checks for matching CUSA01715 v1.02 archives before installing.
+For CUSA01623 or different game files, use tools/xbox-prompts/install.py from
+the source checkout with Python and Pillow, as described in the project README.
+Allow about 405 MiB for new mod files, plus room for backups of existing mods.
+The updater creates <game-folder>-mods beside your game folder. Keep both folders
+together and keep their names matched, including capitalization on Linux.
+Original game archives and saves are kept. Replaced mod WADs are backed up in a
+separate <game-folder>-xbox-backup-* folder; the installer shows its location.
+Other mods that replace the same WAD cannot be combined automatically.
+
+TO REMOVE THE PROMPTS
+Close the game. Move R_UI.WAD, R_PERM.WAD and OLY150.WAD out of
+<game-folder>-mods/EXEC/WAD/PS4_LE/. Restore any previous copies from your backup
+to that directory if you had another mod installed. Keep unrelated mod files.

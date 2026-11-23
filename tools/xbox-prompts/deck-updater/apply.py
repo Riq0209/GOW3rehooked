@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import zipfile
 
@@ -56,7 +57,8 @@ def make_copy(source, output, changes, entry):
             patched.write(block)
             output_digest.update(block)
     if source_digest.hexdigest() != entry["source"]:
-        raise ValueError(f"{source.name} is from a different game copy. This bundle needs the game files used by the Windows test.")
+        raise ValueError(f"{source.name} does not match this CUSA01715 v1.02 bundle. "
+                         "Use tools/xbox-prompts/install.py from the source checkout to build prompts for your own game files.")
     if blocks or changes.read(1) or output_digest.hexdigest() != entry["output"]:
         raise ValueError("The installer ZIP did not pass verification. Extract a fresh copy.")
 
@@ -73,8 +75,12 @@ def apply(game, bundle):
     update = next((game.with_name(game.name + suffix) for suffix in ("-UPDATE", "-patch")
                    if game.with_name(game.name + suffix).is_dir()), None)
     lock = game.with_name(f".{game.name}.xbox-prompts.lock")
-    with lock.open("x"):
-        pass
+    try:
+        with lock.open("x"):
+            pass
+    except FileExistsError:
+        raise ValueError(f"Another Xbox prompt installer may be running. Close it first. "
+                         f"If a previous install was interrupted, remove {lock} and try again.") from None
     try:
         return apply_locked(game, bundle, update, target_dir)
     finally:
@@ -129,7 +135,9 @@ def apply_locked(game, bundle, update, target_dir):
                 else:
                     current.unlink()
             raise
-    message = "Latest Xbox prompts installed. Launch your usual GOW3rehooked Steam shortcut."
+    message = ("Xbox prompts installed. Launch GOW3rehooked as usual.\n\n"
+               "Prompts match the default controller bindings. Remap controls under Help and Controls.\n"
+               "The pause menu controller diagram still shows a DualShock 4.")
     if backup_dir:
         message += f"\n\nPrevious mod files saved in:\n{backup_dir}"
     return message
@@ -140,9 +148,28 @@ def main():
     parser.add_argument("game", type=Path, nargs="?")
     args = parser.parse_args()
     dialog = shutil.which("kdialog") if args.game is None else None
+    window = None
+    # The standard Windows Python installer includes Tk; keep CLI use independent of it.
+    if args.game is None and sys.platform == "win32":
+        try:
+            import tkinter as tk
+            from tkinter import filedialog, messagebox
+        except ImportError:
+            pass
+        else:
+            try:
+                window = tk.Tk()
+                window.withdraw()
+            except tk.TclError:
+                window = None
     try:
         if args.game is not None:
             game = args.game
+        elif window is not None:
+            folder = filedialog.askdirectory(title="Choose the GOW3 folder containing eboot.bin", parent=window)
+            if not folder:
+                return
+            game = Path(folder)
         elif dialog:
             result = subprocess.run([dialog, "--title", "Choose the GOW3 folder containing eboot.bin",
                                      "--getexistingdirectory", str(Path.home())],
@@ -151,17 +178,21 @@ def main():
                 return
             game = Path(result.stdout.rstrip("\r\n"))
         else:
-            folder = input("Paste the full path to the game folder containing eboot.bin: ").strip()
+            folder = input("Paste the full path to the game folder containing eboot.bin: ").strip().strip('"')
             if not folder:
                 return
             game = Path(folder)
         message = apply(game, Path(__file__).resolve().with_name("Xbox-Prompt-Data.zip"))
     except (OSError, KeyError, ValueError, zipfile.BadZipFile) as error:
-        if dialog:
+        if window is not None:
+            messagebox.showerror(TITLE, str(error), parent=window)
+        elif dialog:
             subprocess.run([dialog, "--title", TITLE, "--error", html.escape(str(error))])
         raise SystemExit(str(error))
     print(message)
-    if dialog:
+    if window is not None:
+        messagebox.showinfo(TITLE, message, parent=window)
+    elif dialog:
         subprocess.run([dialog, "--title", TITLE, "--msgbox", html.escape(message)])
     elif args.game is None:
         input("Press Enter to close.")

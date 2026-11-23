@@ -8,6 +8,8 @@ GOW3rehooked lets you play God of War III Remastered on Windows and Linux PCs. T
 
 No game code or assets are included. You need your own copy of the game.
 
+Using an Xbox controller? Follow the [Xbox button layout and prompt installation guide](#xbox-prompts-in-the-original-game).
+
 <p align="center">
   <br>
   <a href="https://github.com/cuesta4/GOW3rehooked/releases/latest">
@@ -131,9 +133,52 @@ You can play with a gamepad or with keyboard and mouse, and remap both from a sc
 
 #### Xbox prompts in the original game
 
-The optional [Xbox prompt installer](tools/xbox-prompts/install.py) builds a mod from your 1.02 game files for tutorials, move lists, quick-time events and the Muses' lyre. Its labels match the default controller bindings. The pause menu's controller diagram still shows a DualShock 4.
+Xbox controllers work with the default bindings. Connect your controller, then open **Help and Controls** from the title menu to view, remap or restore the controls.
 
-On Steam Deck, download and extract the [Xbox Prompt Updater ZIP](assets/Xbox-Prompt-Updater-Steam-Deck.zip), then open **Apply Xbox Prompts** in Desktop Mode. Choose the folder containing `eboot.bin`. The updater checks for matching CUSA01715 v1.02 game archives, backs up any mod files it replaces, and keeps your saves. For other game dumps, use the installer below.
+| Xbox button | Default action | PlayStation equivalent |
+| --- | --- | --- |
+| A | Jump | Cross |
+| B | Grab | Circle |
+| X | Light Attack | Square |
+| Y | Heavy Attack | Triangle |
+| LB / RB | Block / Interact | L1 / R1 |
+| LT / RT | Prepare Item / Magic | L2 / R2 |
+| View / Back | Pause | Touchpad |
+| Menu / Start | Power Up Menu | Options |
+
+To show Xbox icons in tutorials, move lists, quick-time events and the Muses' lyre, install the optional prompt mod below. Its textures match the **default bindings**, even after you remap buttons. The pause menu's controller diagram still shows a DualShock 4.
+
+**Easy setup (matching CUSA01715 v1.02 game files)**
+
+1. Close the game and download the updater for [Windows](assets/Xbox-Prompt-Updater-Windows.zip?raw=true) or [Steam Deck / Linux](assets/Xbox-Prompt-Updater-Steam-Deck.zip?raw=true).
+2. Extract **all** files into one folder. On Windows, install [Python 3.10 or newer](https://www.python.org/downloads/) with the Python launcher if needed. Steam Deck already has Python; no extra packages are needed for this updater.
+3. On Windows, double-click **Apply Xbox Prompts.cmd**. On Steam Deck, open **Apply Xbox Prompts.desktop** in Desktop Mode and choose Execute if asked. On other Linux desktops, run `python3 apply.py "/path/to/game"` from the extracted folder.
+4. Choose the folder containing `eboot.bin` and wait for the installed message. Launch GOW3rehooked as usual.
+
+Allow about 405 MiB for the mod, plus space to back up any replaced mod files. The updater verifies the game archives, creates a sibling `<game-folder>-mods` folder, and shows where it backed up existing WADs. Keep the game and mod folders together with matching names, including capitalization on Linux. Your original game archives and saves are kept.
+
+For example, after choosing `Games/God of War III`, the folders should look like this:
+
+```text
+Games/
+  God of War III/
+    eboot.bin
+    gow3.exe or gow3.AppImage
+    EXEC/
+  God of War III-mods/
+    EXEC/WAD/PS4_LE/
+      R_UI.WAD
+      R_PERM.WAD
+      OLY150.WAD
+```
+
+If Xbox icons do not appear, check that the `-mods` folder is beside the game folder as shown above. If the updater reports that the archives do not match, follow the source installer instructions below.
+
+To remove the prompts, close the game and move `R_UI.WAD`, `R_PERM.WAD` and `OLY150.WAD` out of `<game-folder>-mods/EXEC/WAD/PS4_LE/`. If the updater replaced another mod, restore its WADs from the backup folder. Keep unrelated mod files.
+
+**Other game files, including CUSA01623**
+
+If the updater reports that your archives do not match, use the [source installer](tools/xbox-prompts/install.py) to build the mod from your own 1.02 game files.
 
 From this source checkout, run the following once with Python 3 and Pillow. On Windows, use `python` in place of `python3`.
 
